@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "delivery_zones" ADD COLUMN     "centerLat" DOUBLE PRECISION,
+ADD COLUMN     "centerLng" DOUBLE PRECISION,
+ADD COLUMN     "radiusKm" DOUBLE PRECISION NOT NULL DEFAULT 3.0;

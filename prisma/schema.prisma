@@ -1,0 +1,431 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============ USER & AUTH ============
+
+model User {
+  id          String   @id @default(uuid())
+  phone       String   @unique // Ethiopian phone format: +251XXXXXXXXX
+  name        String?
+  email       String?
+  avatar      String?
+  language    String   @default("am") // am = Amharic, en = English, or = Oromo, ti = Tigrinya
+  isVerified  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  addresses   Address[]
+  orders      Order[]
+  cart        Cart?
+  reviews     Review[]
+  favorites   Favorite[]
+  otps        OTP[]
+
+  @@map("users")
+}
+
+model OTP {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  @@map("otps")
+}
+
+model Address {
+  id           String  @id @default(uuid())
+  userId       String
+  label        String  // Home, Work, etc.
+  fullAddress  String? // Auto-generated from parts
+  subCity      String  // Sub-city in Addis Ababa (e.g., Bole, Kirkos, Arada)
+  woreda       String? // Woreda number
+  kebele       String? // Kebele number
+  houseNumber  String? // House number
+  landmark     String? // Nearby landmark
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("addresses")
+}
+
+// ============ PRODUCTS & CATEGORIES ============
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   // English name
+  nameAm      String   // Amharic name (አማርኛ)
+  icon        String   // Icon URL or emoji
+  image       String?  // Category banner image
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  name         String
+  nameAm       String   // Amharic name
+  description  String?
+  descriptionAm String? // Amharic description
+  price        Float    // Price in ETB (Ethiopian Birr)
+  comparePrice Float?   // Original price for showing discounts
+  unit         String   // kg, g, piece, bundle, liter, pack, dozen
+  unitValue    Float    @default(1) // e.g., 500 for 500g
+  image        String
+  images       String[] // Additional images
+  sku          String?  @unique
+  barcode      String?
+  stock        Int      @default(0)
+  minOrderQty  Int      @default(1)
+  maxOrderQty  Int      @default(10)
+  isActive     Boolean  @default(true)
+  isFeatured   Boolean  @default(false)
+  isPerishable Boolean  @default(false)
+  tags         String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
+  favorites  Favorite[]
+
+  @@map("products")
+}
+
+// ============ CART ============
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+// ============ ORDERS ============
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique // HAB-XXXXXX format
+  userId          String
+  addressId       String
+  status          OrderStatus @default(PENDING)
+  subtotal        Float       // In ETB
+  deliveryFee     Float       @default(0)
+  serviceFee      Float       @default(0)
+  discount        Float       @default(0)
+  total           Float       // In ETB
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentRef      String?     // Payment reference from Telebirr/CBE
+  deliveryNote    String?
+  estimatedDelivery DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  deliveryOTP     String?     // 4-digit OTP customer gives driver to confirm delivery
+  driverId        String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id])
+  address Address         @relation(fields: [addressId], references: [id])
+  driver  DeliveryDriver? @relation(fields: [driverId], references: [id])
+  items   OrderItem[]
+  tracking OrderTracking[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  productId String
+  name      String // Snapshot of product name at time of order
+  nameAm    String // Amharic name snapshot
+  price     Float  // Price at time of order
+  quantity  Int
+  total     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderTracking {
+  id        String      @id @default(uuid())
+  orderId   String
+  status    OrderStatus
+  message   String?
+  messageAm String?     // Amharic message
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_tracking")
+}
+
+// ============ REVIEWS & FAVORITES ============
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("favorites")
+}
+
+// ============ APP CONFIG ============
+
+model Banner {
+  id        String   @id @default(uuid())
+  title     String
+  titleAm   String?
+  image     String
+  link      String?  // Deep link or category/product ID
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("banners")
+}
+
+model DeliveryZone {
+  id           String  @id @default(uuid())
+  name         String
+  nameAm       String?
+  subCity      String  // Addis Ababa sub-city
+  centerLat    Float?  // Center latitude of geofence
+  centerLng    Float?  // Center longitude of geofence
+  radiusKm     Float   @default(3.0) // Geofence radius in kilometers
+  deliveryFee  Float   @default(30) // Default 30 ETB
+  minOrder     Float   @default(100) // Minimum 100 ETB order
+  isActive     Boolean @default(true)
+  estimatedMin Int     @default(15) // Minutes
+  estimatedMax Int     @default(30) // Minutes
+
+  @@map("delivery_zones")
+}
+
+// ============ DELIVERY DRIVERS ============
+
+model DeliveryDriver {
+  id            String       @id @default(uuid())
+  phone         String       @unique
+  name          String?
+  email         String?
+  avatar        String?
+  language      String       @default("am")
+  isVerified    Boolean      @default(false)
+  isActive      Boolean      @default(true)
+  isOnline      Boolean      @default(false)
+  vehicleType   VehicleType  @default(BICYCLE)
+  vehiclePlate  String?
+  licenseNumber String?
+  rating        Float        @default(5.0)
+  totalDeliveries Int        @default(0)
+  totalEarnings Float        @default(0)
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  orders        Order[]
+  otps          DriverOTP[]
+  earnings      DriverEarning[]
+
+  @@map("delivery_drivers")
+}
+
+model DriverOTP {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  driver   DeliveryDriver? @relation(fields: [driverId], references: [id])
+  driverId String?
+
+  @@map("driver_otps")
+}
+
+model DriverEarning {
+  id          String   @id @default(uuid())
+  driverId    String
+  orderId     String
+  amount      Float    // Earnings for this delivery in ETB
+  tip         Float    @default(0)
+  bonus       Float    @default(0)
+  status      EarningStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  driver DeliveryDriver @relation(fields: [driverId], references: [id])
+
+  @@map("driver_earnings")
+}
+
+// ============ PROMO CODES & OFFERS ============
+
+model PromoCode {
+  id              String        @id @default(uuid())
+  code            String        @unique // e.g. "WELCOME50", "MESKEL2026"
+  title           String        // Display title
+  titleAm         String?       // Amharic title
+  description     String?
+  descriptionAm   String?
+  discountType    DiscountType  // PERCENTAGE or FIXED
+  discountValue   Float         // e.g. 10 for 10% or 50 for 50 ETB
+  minOrderAmount  Float         @default(0) // Minimum cart subtotal
+  maxDiscount     Float?        // Cap for percentage discounts
+  maxUses         Int?          // Total uses across all users (null = unlimited)
+  maxUsesPerUser  Int           @default(1) // Uses per individual user
+  usedCount       Int           @default(0)
+  isActive        Boolean       @default(true)
+  startDate       DateTime      @default(now())
+  endDate         DateTime?     // null = no expiry
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  usages PromoUsage[]
+
+  @@map("promo_codes")
+}
+
+model PromoUsage {
+  id          String   @id @default(uuid())
+  promoCodeId String
+  userId      String
+  orderId     String?
+  discount    Float    // Actual discount amount applied
+  createdAt   DateTime @default(now())
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id])
+
+  @@map("promo_usages")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+// ============ ENUMS ============
+
+enum VehicleType {
+  BICYCLE
+  MOTORCYCLE
+  CAR
+}
+
+enum EarningStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  PICKED_UP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  TELEBIRR     // Ethio Telecom mobile money
+  CBE_BIRR     // Commercial Bank of Ethiopia
+  AMOLE        // Dashen Bank
+  CASH         // Cash on delivery
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
