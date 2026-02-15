@@ -17,6 +17,7 @@ import driverAuthRoutes from './routes/driver-auth';
 import driverOrderRoutes from './routes/driver-orders';
 import adminRoutes from './routes/admin';
 import promoRoutes from './routes/promos';
+import packageRoutes from './routes/packages';
 import mockRoutes from './routes/mock';
 
 dotenv.config();
@@ -63,6 +64,7 @@ if (useMock) {
   app.use('/api/driver/orders', driverOrderRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/promos', promoRoutes);
+  app.use('/api/packages', packageRoutes);
 }
 
 // Socket.io for real-time order tracking

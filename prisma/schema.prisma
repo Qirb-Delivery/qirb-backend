@@ -117,12 +117,49 @@ model Product {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  reviews    Review[]
-  favorites  Favorite[]
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  reviews      Review[]
+  favorites    Favorite[]
+  packageItems PackageItem[]
 
   @@map("products")
+}
+
+// ============ PRODUCT PACKAGES ============
+
+model ProductPackage {
+  id           String   @id @default(uuid())
+  name         String   // e.g., "Monthly Essentials"
+  nameAm       String   // Amharic name
+  description  String?  // Describe what's included
+  descriptionAm String? // Amharic description
+  image        String   // Package image/icon
+  totalPrice   Float    // Total if bought separately
+  packagePrice Float    // Discounted bundle price
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  isFeatured   Boolean  @default(false) // Show prominently on home
+  tags         String[] // e.g., ["monthly", "essentials", "groceries"]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items PackageItem[]
+
+  @@map("product_packages")
+}
+
+model PackageItem {
+  id        String @id @default(uuid())
+  packageId String
+  productId String
+  quantity  Int    @default(1)
+
+  package ProductPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+
+  @@unique([packageId, productId])
+  @@map("package_items")
 }
 
 // ============ CART ============

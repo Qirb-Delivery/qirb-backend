@@ -15,6 +15,8 @@ async function main() {
   await prisma.cart.deleteMany();
   await prisma.review.deleteMany();
   await prisma.favorite.deleteMany();
+  await prisma.packageItem.deleteMany();
+  await prisma.productPackage.deleteMany();
   await prisma.oTP.deleteMany();
   await prisma.address.deleteMany();
   await prisma.product.deleteMany();
@@ -306,6 +308,149 @@ async function main() {
   ]);
 
   console.log(`✅ Created ${zones.length} delivery zones`);
+
+  // ============ PRODUCT PACKAGES ============
+  const productMap: Record<string, string> = {};
+  products.forEach((p) => {
+    productMap[p.name] = p.id;
+  });
+
+  // Verify all products needed for packages exist
+  const requiredProducts = [
+    "White Teff Flour", "Sunflower Oil", "Red Lentils (Misir)", "Onions (Red)",
+    "Ethiopian Coffee Beans (Yirgacheffe)", "Fresh Injera (Pack of 10)", "Laundry Detergent",
+    "Tomatoes", "Kolo (Roasted Barley)", "Pure Honey (Mar)", "Berbere Spice Mix",
+    "Mitmita", "Shiro Powder", "Dish Soap", "Toilet Paper (4 Pack)", "Body Soap"
+  ];
+  
+  const missingProducts = requiredProducts.filter(name => !productMap[name]);
+  if (missingProducts.length > 0) {
+    console.warn(`⚠️ Missing products for packages: ${missingProducts.join(', ')}`);
+    console.warn('Available products:', Object.keys(productMap).sort().join(', '));
+  }
+
+  const packages = await Promise.all([
+    // Monthly Essentials
+    prisma.productPackage.create({
+      data: {
+        name: "Monthly Essentials",
+        nameAm: "የወር አስፈላጊዎች",
+        description: "Everything you need for a month - grains, oils, legumes, and household items",
+        descriptionAm: "ለአንድ ወር የሚያስፈልግዎ ሁሉ - እህሎች፣ ዘይቶች፣ ጥራጥሬ እና የቤት እቃዎች",
+        image: "https://images.unsplash.com/photo-1543168256-418811576931?w=800",
+        totalPrice: 1305,
+        packagePrice: 999,
+        sortOrder: 1,
+        isFeatured: true,
+        tags: ["monthly", "essentials", "bulk"],
+        items: {
+          create: [
+            { productId: productMap["White Teff Flour"], quantity: 5 },
+            { productId: productMap["Sunflower Oil"], quantity: 2 },
+            { productId: productMap["Red Lentils (Misir)"], quantity: 2 },
+            { productId: productMap["Onions (Red)"], quantity: 3 },
+            { productId: productMap["Ethiopian Coffee Beans (Yirgacheffe)"], quantity: 1 },
+            { productId: productMap["Fresh Injera (Pack of 10)"], quantity: 4 },
+            { productId: productMap["Laundry Detergent"], quantity: 2 },
+          ],
+        },
+      },
+    }),
+    // Weekly Starter
+    prisma.productPackage.create({
+      data: {
+        name: "Weekly Starter",
+        nameAm: "የሳምንት መነሻ",
+        description: "Perfect weekly groceries for a small family - fresh produce, grains, and basics",
+        descriptionAm: "ለትንሽ ቤተሰብ ፍጹም የሳምንት ግሮሰሪዎች - ትኩስ አትክልት፣ እህል እና መሰረታዊ",
+        image: "https://images.unsplash.com/photo-1601656774283-ca59f8dbdd86?w=800",
+        totalPrice: 495,
+        packagePrice: 399,
+        sortOrder: 2,
+        isFeatured: true,
+        tags: ["weekly", "family", "groceries"],
+        items: {
+          create: [
+            { productId: productMap["White Teff Flour"], quantity: 2 },
+            { productId: productMap["Onions (Red)"], quantity: 2 },
+            { productId: productMap["Tomatoes"], quantity: 2 },
+            { productId: productMap["Fresh Injera (Pack of 10)"], quantity: 2 },
+            { productId: productMap["Red Lentils (Misir)"], quantity: 1 },
+            { productId: productMap["Sunflower Oil"], quantity: 1 },
+          ],
+        },
+      },
+    }),
+    // Coffee Lover's Bundle
+    prisma.productPackage.create({
+      data: {
+        name: "Coffee Lover's Bundle",
+        nameAm: "የቡና ወዳጅ ጥቅል",
+        description: "Premium Ethiopian coffee experience - coffee beans, tea, and snacks",
+        descriptionAm: "ፕሪሚየም የኢትዮጵያ ቡና ልምድ - የቡና ፍሬዎች፣ ሻይ እና መክሰስ",
+        image: "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=800",
+        totalPrice: 240,
+        packagePrice: 199,
+        sortOrder: 3,
+        isFeatured: false,
+        tags: ["coffee", "beverages", "snacks"],
+        items: {
+          create: [
+            { productId: productMap["Ethiopian Coffee Beans (Yirgacheffe)"], quantity: 2 },
+            { productId: productMap["Kolo (Roasted Barley)"], quantity: 1 },
+            { productId: productMap["Pure Honey (Mar)"], quantity: 1 },
+          ],
+        },
+      },
+    }),
+    // Spice Master
+    prisma.productPackage.create({
+      data: {
+        name: "Spice Master Collection",
+        nameAm: "የቅመማ ቅመም ማስተር ስብስብ",
+        description: "Complete Ethiopian spice collection to elevate your cooking",
+        descriptionAm: "የማብሰያ ችሎታዎን ለማሳደግ ሙሉ የኢትዮጵያ ቅመማ ቅመሞች ስብስብ",
+        image: "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=800",
+        totalPrice: 340,
+        packagePrice: 279,
+        sortOrder: 4,
+        isFeatured: false,
+        tags: ["spices", "cooking", "authentic"],
+        items: {
+          create: [
+            { productId: productMap["Berbere Spice Mix"], quantity: 2 },
+            { productId: productMap["Mitmita"], quantity: 1 },
+            { productId: productMap["Shiro Powder"], quantity: 2 },
+          ],
+        },
+      },
+    }),
+    // Household Essentials
+    prisma.productPackage.create({
+      data: {
+        name: "Household Essentials",
+        nameAm: "የቤት አስፈላጊዎች",
+        description: "Keep your home clean and fresh with this essentials bundle",
+        descriptionAm: "ቤትዎን ንፅህና እና ትኩስ ለማድረግ ይህን አስፈላጊዎች ጥቅል ይጠቀሙ",
+        image: "https://images.unsplash.com/photo-1585441695325-21557c1a1b8b?w=800",
+        totalPrice: 325,
+        packagePrice: 259,
+        sortOrder: 5,
+        isFeatured: false,
+        tags: ["household", "cleaning", "essentials"],
+        items: {
+          create: [
+            { productId: productMap["Laundry Detergent"], quantity: 2 },
+            { productId: productMap["Dish Soap"], quantity: 2 },
+            { productId: productMap["Toilet Paper (4 Pack)"], quantity: 2 },
+            { productId: productMap["Body Soap"], quantity: 3 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log(`✅ Created ${packages.length} product packages`);
 
   console.log('\n🎉 Seed completed successfully!');
   console.log('   Run the server with: npm run dev');
