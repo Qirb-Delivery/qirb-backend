@@ -21,10 +21,10 @@ router.get('/', async (req, res) => {
       orderBy: { sortOrder: 'asc' },
     });
 
-    res.json(packages);
+    res.json({ success: true, data: packages });
   } catch (error) {
     console.error('Error fetching packages:', error);
-    res.status(500).json({ error: 'Failed to fetch packages' });
+    res.status(500).json({ success: false, message: 'Failed to fetch packages' });
   }
 });
 
@@ -50,10 +50,10 @@ router.get('/featured', async (req, res) => {
       take: 5,
     });
 
-    res.json(packages);
+    res.json({ success: true, data: packages });
   } catch (error) {
     console.error('Error fetching featured packages:', error);
-    res.status(500).json({ error: 'Failed to fetch featured packages' });
+    res.status(500).json({ success: false, message: 'Failed to fetch featured packages' });
   }
 });
 
@@ -77,13 +77,13 @@ router.get('/:id', async (req, res) => {
     });
 
     if (!packageData) {
-      return res.status(404).json({ error: 'Package not found' });
+      return res.status(404).json({ success: false, message: 'Package not found' });
     }
 
-    res.json(packageData);
+    res.json({ success: true, data: packageData });
   } catch (error) {
     console.error('Error fetching package:', error);
-    res.status(500).json({ error: 'Failed to fetch package' });
+    res.status(500).json({ success: false, message: 'Failed to fetch package' });
   }
 });
 
